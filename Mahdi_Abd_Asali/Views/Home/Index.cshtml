@@ -1,0 +1,136 @@
+﻿@{
+    ViewBag.Title = "Home Page";
+}
+
+<div class="container">
+    <div id="myDIV">
+        <div>ID:</div> <input type="text" id="comId" disabled>
+        <div>old Name:</div><input type="text" id="oldName" disabled>
+        <div>new Name:</div><input type='text' id='newName'><br>
+        <button id='saveName' onClick=updateRow()>Save</button>
+    </div>
+
+    <div id="jstree">
+
+    </div>
+</div>
+
+@using (Html.BeginForm("Index", "Home", FormMethod.Post))
+{
+    <style>
+
+        #myDIV {
+            display: none;
+            width: 100%;
+            padding: 50px 0;
+            text-align: center;
+            background-color: lightblue;
+            margin-top: 20px;
+        }
+    </style>
+    @section scripts{
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" />
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.12.1/jquery.min.js"></script>
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
+        <script type="text/javascript">
+
+        function myFunction(id, name) {
+            document.getElementById("comId").value  = id;
+            document.getElementById("oldName").value = name;
+            var x = document.getElementById("myDIV");
+            x.style.display = "block";
+
+        }
+
+        function updateRow() {
+            var id=document.getElementById("comId").value
+
+            var newName=document.getElementById("newName").value
+
+            if (newName == "")
+                return alert('no name entered')
+            else if (id == "")
+                return alert('unknown id')
+
+            url = '@Url.Action("Index", "Home")';
+
+            //posting the new updates.
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: { 'id': id, 'newName': newName },
+                success: function (returnData) {
+                    $("#onSuccess").html(returnData);
+                    console.log(returnData);
+
+                },
+                error: {
+                }
+            });
+            //getting last updates
+            url = '@Url.Action("Index", "Home")';
+            $.ajax({
+                url: url,
+                type: 'GET',
+                success: function (returnData) {
+                    $('#jstree').jstree(true).refresh();
+                    window.location = "/Home/Index";
+                },
+                error: {
+                }
+            });
+        }
+
+
+        $(function () {
+            $('#jstree').on("select_node.jstree", function (e, data) {
+                if ((data.node.parent == '#')) {
+                    myFunction(data.node.id, data.node.text);
+                }
+                console.log('clicked on id' + data.node.id + 'parent:'+ data.node.parent);
+            });
+
+            $('#jstree').on('changed.jstree', function (e, data) {
+                var i, j;
+                var postedItems = [];
+                for(i = 0, j = data.selected.length; i < j; i++) {
+
+                    //Fetch the Id.
+                    var id = data.selected[i];
+
+                    //Remove the ParentId.
+                    if(id.indexOf('-') != -1){
+                        id = id.split("-")[1];
+                    }
+
+                    //Add the Node to the JSON Array.
+                    postedItems.push({
+                        code: data.instance.get_node(data.selected[i]).code,
+                        text: data.instance.get_node(data.selected[i]).text,
+                        id: id,
+                        parent: data.node.parents[0]
+                    });
+                }
+
+                //Serialize the JSON Array and save in HiddenField.
+                $('#selectedItems').val(JSON.stringify(postedItems));
+            }).jstree({
+                "core": {
+                    'check_callback': function (operation, node, node_parent, node_position, more) {
+                        // operation can be 'create_node', 'rename_node', 'delete_node', 'move_node' or 'copy_node'
+                        // in case of 'rename_node' node_position is filled with the new node name
+                        return operation === 'rename_node' ? true : false;
+                    },
+                    "themes": {
+                        "variant": "large"
+                    },
+                    "data": @Html.Raw(ViewBag.Json)
+                    },
+                "checkbox": {
+                    "keep_selected_style": false
+                },
+                "plugins": ["wholerow"],
+            });
+        });
+        </script>
+    }}
